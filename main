@@ -1,0 +1,1757 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<windows.h>
+#include<conio.h>
+#include<time.h>
+#include <Windows.h>
+#define Wid 40
+#define Hei 20
+#define ENTER 13
+
+int speed;
+int map;
+int score;
+int map;
+int Px[4], Py[4];
+int O = 0;
+int quit = 0;
+int f = 1;
+int len = 1;
+int chart = 0;
+int scorea[100];
+int scoreb[6];
+int dis = 0;
+
+typedef struct Node {
+	int x;
+	int y;
+	struct Node *prev;
+	struct Node *next;
+}Snake, *Psnake;
+Psnake head;
+Psnake tail;
+
+struct SnakePos {
+	int x;
+	int y;
+	int dir;
+}HeadPos;
+
+struct FoodPos {
+	int x;
+	int y;
+}Fpos;
+
+struct PoisonPos {
+	int x;
+	int y;
+}Ppos;
+
+struct MinePos {
+	int x;
+	int y;
+}Mpos;
+
+void Level();
+void save();
+void load();
+void saveList();
+void showList();
+
+void pos(int x, int y) {         /*控制光标位置*/
+	COORD a;
+	a.X = x;
+	a.Y = y;
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), a);
+	CONSOLE_CURSOR_INFO cursor_info = { 1,0 };
+	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info);
+}
+
+void AddHead(int x, int y) {         /*增加蛇头节点*/
+	pos(x, y);
+	printf("◆");
+	Psnake q = (Psnake)malloc(sizeof(Snake));
+	q->x = x;
+	q->y = y;
+	if (head == NULL && tail == NULL)
+	{
+		head = tail = q;
+		q->next = NULL;
+	}
+	else
+	{
+		q->next = head;
+		head->prev = q;
+		head = q;
+	}
+}
+
+void ReduceTail() {              /*减少蛇尾节点*/
+	pos(tail->x, tail->y);
+	printf("  ");
+	tail = tail->prev;
+	free(tail->next);
+	tail->next = NULL;
+}
+
+void HalfSnake(int x, int y) {           /*使蛇身体减半*/
+	AddHead(x, y);
+	int i;
+	for (i = 0; i < (len / 2) + 1; i++) {
+		ReduceTail();
+	}
+	if ((len % 2) == 0) {
+		len = len / 2;
+		score = score / 2;
+	}
+	else {
+		len = (len / 2) + 1;
+		score = score / 2;
+	}
+}
+
+void MoveSnake(int x, int y) {         /*蛇正常移动一格*/
+	AddHead(x, y);
+	ReduceTail();
+}
+
+void MinusSnake(int x, int y) {            /*身体减少一格*/
+	AddHead(x, y);
+	ReduceTail();
+	ReduceTail();
+}
+
+void Changed() {            /*键盘控制蛇移动方向*/
+	int q = 0;
+	while (_kbhit()) {
+		switch (getch()) {
+		case 72:
+			if (!(HeadPos.dir == 1 && score > 1) && q == 0) {     /*确保不会反向移动*/
+				HeadPos.dir = 0;
+				q = 1;
+			}
+			break;
+		case 80:
+			if (!(HeadPos.dir == 0 && score > 1) && q == 0) {
+				HeadPos.dir = 1;
+				q = 1;
+			}
+			break;
+		case 75:
+			if (!(HeadPos.dir == 3 && score > 1) && q == 0) {
+				HeadPos.dir = 2;
+				q = 1;
+			}
+			break;
+		case 77:
+			if (!(HeadPos.dir == 2 && score > 1) && q == 0) {
+				HeadPos.dir = 3;
+				q = 1;
+			}
+			break;
+		case 32:
+			_getch();       /*暂停*/
+			_getch();
+			break; 
+		case '9':           /*退出游戏*/
+			save();      
+			quit = 1;
+		default:
+			break;
+		}
+	}
+	switch (HeadPos.dir) {
+	case 0:
+		HeadPos.y--;
+		break;
+	case 1:
+		HeadPos.y++;
+		break;
+	case 2:
+		HeadPos.x -= 2;
+		break;
+	case 3:
+		HeadPos.x += 2;
+		break;
+	}
+}
+
+void Border1() {             /*控制光标移动绘出地图*/
+	int x, y;
+	x = 0;
+	for (y = 0; y < Hei; y++) {
+		pos(x, y);
+		for (x = 0; x <= Wid - 2; x += 2) {
+
+			if (y == 0 || y == Hei - 1 || x == 0 || x == Wid - 2)
+				printf("■");
+			else
+				printf("  ");
+		}
+		x = 0;
+	}
+	y = 5;
+	for (x = 14; x < 26; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	y = 15;
+	for (x = 14; x < 26; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	switch (speed) {
+	case 50:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：5级巨佬");
+		break;
+	case 100:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：4级大佬");
+		break;
+	case 150:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：3级地球人");
+		break;
+	case 200:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：2级菜鸡");
+		break;
+	case 250:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：1级蜗牛");
+		break;
+	}
+	pos(Wid + 2, 8);
+	printf("空格键暂停 按键9退出游戏");
+	pos(Wid + 2, 18);
+	printf("食物：●     毒草：★     地雷：△");
+}
+
+void Border2() {
+	int x, y;
+	x = 0;
+	for (y = 0; y < Hei; y++) {
+		pos(x, y);
+		for (x = 0; x <= Wid - 2; x += 2) {
+
+			if (y == 0 || y == Hei - 1 || x == 0 || x == Wid - 2)
+				printf("■");
+			else
+				printf("  ");
+		}
+		x = 0;
+	}
+	y = 4;
+	for (x = 8; x < 16; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	for (x = 24; x < 32; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	x = 8;
+	for (y = 5; y < 8; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	for (y = 13; y < 16; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	y = 12;
+	for (x = 8; x < 16; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	for (x = 24; x < 32; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	x = 30;
+	for (y = 5; y < 8; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	for (y = 13; y < 16; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	switch (speed) {
+	case 50:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：5级巨佬");
+		break;
+	case 100:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：4级大佬");
+		break;
+	case 150:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：3级地球人");
+		break;
+	case 200:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：2级菜鸡");
+		break;
+	case 250:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：1级蜗牛");
+		break;
+	}
+	pos(Wid + 2, 8);
+	printf("空格键暂停 按键9退出游戏");
+	pos(Wid + 2, 18);
+	printf("食物：●     毒草：★     地雷：△");
+}
+
+void Border3() {
+	int x, y;
+	x = 0;
+	for (y = 0; y < Hei; y++) {
+		pos(x, y);
+		for (x = 0; x <= Wid - 2; x += 2) {
+
+			if (y == 0 || y == Hei - 1 || x == 0 || x == Wid - 2)
+				printf("■");
+			else
+				printf("  ");
+		}
+		x = 0;
+	}
+	y = 4;
+	for (x = 8; x < 16; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	for (x = 24; x < 32; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	x = 8;
+	for (y = 5; y < 8; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	for (y = 12; y < 16; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	y = 15;
+	for (x = 8; x < 16; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	for (x = 24; x < 32; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	x = 30;
+	for (y = 5; y < 8; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	for (y = 12; y < 16; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	x = 20;
+	for (y = 7; y < 13; y++) {
+		pos(x, y);
+		printf("■");
+	}
+	y = 10;
+	for (x = 14; x < 25; x += 2) {
+		pos(x, y);
+		printf("■");
+	}
+	switch (speed) {
+	case 50:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：5级巨佬");
+		break;
+	case 100:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：4级大佬");
+		break;
+	case 150:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：3级地球人");
+		break;
+	case 200:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：2级菜鸡");
+		break;
+	case 250:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：1级蜗牛");
+		break;
+	}
+	pos(Wid + 2, 8);
+	printf("空格键暂停 按键9退出游戏");
+	pos(Wid + 2, 18);
+	printf("食物：●     毒草：★     地雷：△");
+}
+
+void Level() {                           /*跟新显示当前等级*/
+	if (speed > 50) {
+		if (score >= 10 && score < 20 && f == 1) {
+			speed -= 50;
+			f = 0;
+		}
+		else if (score >= 20 && score < 30 && f == 0) {
+			speed -= 50;
+			f = 1;
+		}
+		else if (score >= 30 && score < 40 && f == 1) {
+			speed -= 50;
+			f = 0;
+		}
+		else if (score >= 40 && score < 50 && f == 0) {
+			speed -= 50;
+			f = 1;
+		}
+	}
+	switch (speed) {
+	case 50:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：5级巨佬");
+		break;
+	case 100:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：4级大佬");
+		break;
+	case 150:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：3级地球人");
+		break;
+	case 200:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：2级菜鸡");
+		break;
+	case 250:
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("当前等级：1级蜗牛");
+		break;
+	}
+	if (score >= 60) {
+		system("pause");
+		pos(Wid + 2, 5);
+		printf("                  ");
+		pos(Wid + 2, 5);
+		printf("恭喜巨佬通关成功");
+	}
+}
+
+int Over1() {
+	if (HeadPos.x <= 0 || HeadPos.x >= Wid - 2 || HeadPos.y <= 0 || HeadPos.y >= Hei - 1)        /*撞墙死亡*/
+		return 1;
+	else if (HeadPos.x >= 14 && HeadPos.x <= 24 && HeadPos.y == 5)      
+		return 1;
+	else if (HeadPos.x >= 14 && HeadPos.x <= 24 && HeadPos.y == 15)
+		return 1;
+	Psnake q = head;
+	while (q != NULL) {
+		if (HeadPos.x == q->x&&HeadPos.y == q->y)        /*撞尾巴死亡*/
+			return 1;
+		q = q->next;
+	}
+	if (quit)             /*人为退出游戏*/
+		return 1;
+	return 0;
+}
+
+int Over2() {
+	if (HeadPos.x <= 0 || HeadPos.x >= Wid - 2 || HeadPos.y <= 0 || HeadPos.y >= Hei - 1)
+		return 1;
+	else if (HeadPos.x >= 8 && HeadPos.x <= 14 && HeadPos.y == 4)
+		return 1;
+	else if (HeadPos.x >= 24 && HeadPos.x <= 30 && HeadPos.y == 4)
+		return 1;
+	else if (HeadPos.x == 8 && HeadPos.y >= 5 && HeadPos.y <= 7)
+		return 1;
+	else if (HeadPos.x == 8 && HeadPos.y >= 13 && HeadPos.y <= 15)
+		return 1;
+	else if (HeadPos.x >= 8 && HeadPos.x <= 14 && HeadPos.y == 12)
+		return 1;
+	else if (HeadPos.x >= 24 && HeadPos.x <= 30 && HeadPos.y == 12)
+		return 1;
+	else if (HeadPos.x == 30 && HeadPos.y >= 5 && HeadPos.y <= 7)
+		return 1;
+	else if (HeadPos.x == 30 && HeadPos.y >= 13 && HeadPos.y <= 15)
+		return 1;
+	Psnake q = head;
+	while (q != NULL) {
+		if (HeadPos.x == q->x&&HeadPos.y == q->y)
+			return 1;
+		q = q->next;
+	}
+	if (quit)
+		return 1;
+	return 0;
+}
+
+int Over3() {
+	if (HeadPos.x <= 0 || HeadPos.x >= Wid - 2 || HeadPos.y <= 0 || HeadPos.y >= Hei - 1)
+		return 1;
+	else if (HeadPos.x >= 8 && HeadPos.x <= 14 && HeadPos.y == 4)
+		return 1;
+	else if (HeadPos.x >= 24 && HeadPos.x <= 30 && HeadPos.y == 4)
+		return 1;
+	else if (HeadPos.x == 8 && HeadPos.y >= 5 && HeadPos.y <= 7)
+		return 1;
+	else if (HeadPos.x == 8 && HeadPos.y >= 12 && HeadPos.y <= 15)
+		return 1;
+	else if (HeadPos.x >= 8 && HeadPos.x <= 14 && HeadPos.y == 15)
+		return 1;
+	else if (HeadPos.x >= 24 && HeadPos.x <= 30 && HeadPos.y == 15)
+		return 1;
+	else if (HeadPos.x == 30 && HeadPos.y >= 5 && HeadPos.y <= 7)
+		return 1;
+	else if (HeadPos.x == 30 && HeadPos.y >= 12 && HeadPos.y <= 15)
+		return 1;
+	else if (HeadPos.x == 20 && HeadPos.y >= 7 && HeadPos.y <= 12)
+		return 1;
+	else if (HeadPos.x >= 14 && HeadPos.x <= 24 && HeadPos.y == 10)
+		return 1;
+	Psnake q = head;
+	while (q != NULL) {
+		if (HeadPos.x == q->x&&HeadPos.y == q->y)
+			return 1;
+		q = q->next;
+	}
+	if (quit)
+		return 1;
+	return 0;
+}
+
+void Update() {              /*刷新显示得分与等级*/
+	pos(Wid + 2, 9);
+	printf("          ");
+	pos(Wid + 2, 9);
+	printf("得分：%d", score);
+	pos(Wid + 2, 10);
+	printf("           ");
+	pos(Wid + 2, 10);
+	printf("长度：%d", len);
+}
+
+void Updatescore() {            /*刷新增加分数和蛇身长度*/
+	pos(Wid + 2, 9);
+	printf("          ");
+	pos(Wid + 2, 9);
+	printf("得分：%d", ++score);
+	pos(Wid + 2, 10);
+	printf("           ");
+	pos(Wid + 2, 10);
+	printf("长度：%d", ++len);
+}
+
+void Mscore() {                 /*刷新减少分数和蛇身长度*/
+	pos(Wid + 2, 9);
+	printf("          ");
+	pos(Wid + 2, 9);
+	printf("得分：%d", --score);
+	pos(Wid + 2, 10);
+	printf("           ");
+	pos(Wid + 2, 10);
+	printf("长度：%d", --len);
+}
+
+void InitFood1() {                  /*吃到食物后再次生成食物*/
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 5)
+			flag = 1;
+		else if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 15)
+			flag = 1;
+		else if (Fpos.x == Mpos.x&&Fpos.x == Mpos.y)
+			flag = 1;
+		else if (Fpos.x == Ppos.x&&Fpos.y == Ppos.y)
+			flag = 1;
+		else if (Fpos.x == Px[1] && Fpos.y == Py[1])
+			flag = 1;
+		else if (Fpos.x == Px[2] && Fpos.y == Py[2])
+			flag = 1;
+		else if (Fpos.x == Px[3] && Fpos.y == Py[3])
+			flag = 1;
+		else if (Fpos.x == Px[4] && Fpos.y == Py[4])
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+	Updatescore();
+}
+
+void InitFood2() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 13 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 12)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 12)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 13 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x == Mpos.x&&Fpos.x == Mpos.y)
+			flag = 1;
+		else if (Fpos.x == Ppos.x&&Fpos.y == Ppos.y)
+			flag = 1;
+		else if (Fpos.x == Px[1] && Fpos.y == Py[1])
+			flag = 1;
+		else if (Fpos.x == Px[2] && Fpos.y == Py[2])
+			flag = 1;
+		else if (Fpos.x == Px[3] && Fpos.y == Py[3])
+			flag = 1;
+		else if (Fpos.x == Px[4] && Fpos.y == Py[4])
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+	Updatescore();
+}
+
+void InitFood3() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 12 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 15)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 15)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 12 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x == 20 && Fpos.y >= 7 && Fpos.y <= 12)
+			flag = 1;
+		else if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 10)
+			flag = 1;
+		else if (Fpos.x == Mpos.x&&Fpos.x == Mpos.y)
+			flag = 1;
+		else if (Fpos.x == Ppos.x&&Fpos.y == Ppos.y)
+			flag = 1;
+		else if (Fpos.x == Px[1] && Fpos.y == Py[1])
+			flag = 1;
+		else if (Fpos.x == Px[2] && Fpos.y == Py[2])
+			flag = 1;
+		else if (Fpos.x == Px[3] && Fpos.y == Py[3])
+			flag = 1;
+		else if (Fpos.x == Px[4] && Fpos.y == Py[4])
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+	Updatescore();
+}
+
+void Initfood1() {                         /*界面初始化时首次生成食物*/
+	srand((unsigned)time(NULL)); 
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 5)
+			flag = 1;
+		else if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+}
+
+void Initfood2() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 13 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 12)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 12)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 13 && Fpos.y <= 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+}
+
+void Initfood3() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Fpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Fpos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Fpos.x == q->x&&Fpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 4)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 8 && Fpos.y >= 12 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x >= 8 && Fpos.x <= 14 && Fpos.y == 15)
+			flag = 1;
+		else if (Fpos.x >= 24 && Fpos.x <= 30 && Fpos.y == 15)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 5 && Fpos.y <= 7)
+			flag = 1;
+		else if (Fpos.x == 30 && Fpos.y >= 12 && Fpos.y <= 15)
+			flag = 1;
+		else if (Fpos.x == 20 && Fpos.y >= 7 && Fpos.y <= 12)
+			flag = 1;
+		else if (Fpos.x >= 14 && Fpos.x <= 24 && Fpos.y == 10)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	Level();
+}
+
+void Initmine1() {                       /*生成地雷*/
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Mpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Mpos.y = rand() % (Hei - 2) + 1;
+		Mpos.x = (Mpos.x) / 7 * 7;           /*避免地雷和毒草与食物位置重合*/
+		Mpos.y = (Mpos.y) / 7 * 7;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Mpos.x == q->x&&Mpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if ((Mpos.x % 2) != 0)
+			flag = 1;
+		else if (Mpos.x == Fpos.x&&Mpos.y == Fpos.y)
+			flag = 1;
+		else if (Mpos.x == 0 || Mpos.x == Wid - 2 || Mpos.y == 0 || Mpos.y == Hei - 1)
+			flag = 1;
+		else if (Mpos.x == Ppos.x&&Mpos.y == Ppos.y)
+			flag = 1;
+		else if (Mpos.x == Px[1] && Mpos.y == Py[1])
+			flag = 1;
+		else if (Mpos.x == Px[2] && Mpos.y == Py[2])
+			flag = 1;
+		else if (Mpos.x == Px[3] && Mpos.y == Py[3])
+			flag = 1;
+		else if (Mpos.x == Px[4] && Mpos.y == Py[4])
+			flag = 1;
+		else if (Mpos.x >= 14 && Mpos.x <= 24 && Mpos.y == 5)
+			flag = 1;
+		else if (Mpos.x >= 14 && Mpos.x <= 24 && Mpos.y == 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Mpos.x, Mpos.y);
+	printf("△");
+	Update();
+	Level();
+}
+
+void Initmine2() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Mpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Mpos.y = rand() % (Hei - 2) + 1;
+		Mpos.x = (Mpos.x) / 7 * 7;
+		Mpos.y = (Mpos.y) / 7 * 7;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Mpos.x == q->x&&Mpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if ((Mpos.x % 2) != 0)
+			flag = 1;
+		else if (Mpos.x == Fpos.x&&Mpos.y == Fpos.y)
+			flag = 1;
+		else if (Mpos.x == 0 || Mpos.x == Wid - 2 || Mpos.y == 0 || Mpos.y == Hei - 1)
+			flag = 1;
+		else if (Mpos.x == Ppos.x&&Mpos.y == Ppos.y)
+			flag = 1;
+		else if (Mpos.x == Px[1] && Mpos.y == Py[1])
+			flag = 1;
+		else if (Mpos.x == Px[2] && Mpos.y == Py[2])
+			flag = 1;
+		else if (Mpos.x == Px[3] && Mpos.y == Py[3])
+			flag = 1;
+		else if (Mpos.x == Px[4] && Mpos.y == Py[4])
+			flag = 1;
+		else if (Mpos.x >= 8 && Mpos.x <= 14 && Mpos.y == 4)
+			flag = 1;
+		else if (Mpos.x >= 24 && Mpos.x <= 30 && Mpos.y == 4)
+			flag = 1;
+		else if (Mpos.x == 8 && Mpos.y >= 5 && Mpos.y <= 7)
+			flag = 1;
+		else if (Mpos.x == 8 && Mpos.y >= 13 && Mpos.y <= 15)
+			flag = 1;
+		else if (Mpos.x >= 8 && Mpos.x <= 14 && Mpos.y == 12)
+			flag = 1;
+		else if (Mpos.x >= 24 && Mpos.x <= 30 && Mpos.y == 12)
+			flag = 1;
+		else if (Mpos.x == 30 && Mpos.y >= 5 && Mpos.y <= 7)
+			flag = 1;
+		else if (Mpos.x == 30 && Mpos.y >= 13 && Mpos.y <= 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Mpos.x, Mpos.y);
+	printf("△");
+	Update();
+	Level();
+}
+
+void Initmine3() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Mpos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Mpos.y = rand() % (Hei - 2) + 1;
+		Mpos.x = (Mpos.x) / 7 * 7;
+		Mpos.y = (Mpos.y) / 7 * 7;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Mpos.x == q->x&&Mpos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if ((Mpos.x % 2) != 0)
+			flag = 1;
+		else if (Mpos.x == Fpos.x&&Mpos.y == Fpos.y)
+			flag = 1;
+		else if (Mpos.x == 0 || Mpos.x == Wid - 2 || Mpos.y == 0 || Mpos.y == Hei - 1)
+			flag = 1;
+		else if (Mpos.x == Ppos.x&&Mpos.y == Ppos.y)
+			flag = 1;
+		else if (Mpos.x == Px[1] && Mpos.y == Py[1])
+			flag = 1;
+		else if (Mpos.x == Px[2] && Mpos.y == Py[2])
+			flag = 1;
+		else if (Mpos.x == Px[3] && Mpos.y == Py[3])
+			flag = 1;
+		else if (Mpos.x == Px[4] && Mpos.y == Py[4])
+			flag = 1;
+		else if (Mpos.x >= 8 && Mpos.x <= 14 && Mpos.y == 4)
+			flag = 1;
+		else if (Mpos.x >= 24 && Mpos.x <= 30 && Mpos.y == 4)
+			flag = 1;
+		else if (Mpos.x == 8 && Mpos.y >= 5 && Mpos.y <= 7)
+			flag = 1;
+		else if (Mpos.x == 8 && Mpos.y >= 12 && Mpos.y <= 15)
+			flag = 1;
+		else if (Mpos.x >= 8 && Mpos.x <= 14 && Mpos.y == 15)
+			flag = 1;
+		else if (Mpos.x >= 24 && Mpos.x <= 30 && Mpos.y == 15)
+			flag = 1;
+		else if (Mpos.x == 30 && Mpos.y >= 5 && Mpos.y <= 7)
+			flag = 1;
+		else if (Mpos.x == 30 && Mpos.y >= 12 && Mpos.y <= 15)
+			flag = 1;
+		else if (Mpos.x == 20 && Mpos.y >= 7 && Mpos.y <= 12)
+			flag = 1;
+		else if (Mpos.x >= 14 && Mpos.x <= 24 && Mpos.y == 10)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Mpos.x, Mpos.y);
+	printf("△");
+	Update();
+	Level();
+}
+
+void InitPoison1() {                      /*吃到毒草后再次生成一个毒草*/
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Ppos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Ppos.x == q->x&&Ppos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+			flag = 1;
+		else if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+			flag = 1;
+		else if (Ppos.x == Px[1] && Ppos.y == Py[1])
+			flag = 1;
+		else if (Ppos.x == Px[2] && Ppos.y == Py[2])
+			flag = 1;
+		else if (Ppos.x == Px[3] && Ppos.y == Py[3])
+			flag = 1;
+		else if (Ppos.x == Px[4] && Ppos.y == Py[4])
+			flag = 1;
+		else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 5)
+			flag = 1;
+		else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Ppos.x, Ppos.y);
+	printf("★");
+	Level();
+	Mscore();
+}
+
+void InitPoison2() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Ppos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Ppos.x == q->x&&Ppos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+			flag = 1;
+		else if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+			flag = 1;
+		else if (Ppos.x == Px[1] && Ppos.y == Py[1])
+			flag = 1;
+		else if (Ppos.x == Px[2] && Ppos.y == Py[2])
+			flag = 1;
+		else if (Ppos.x == Px[3] && Ppos.y == Py[3])
+			flag = 1;
+		else if (Ppos.x == Px[4] && Ppos.y == Py[4])
+			flag = 1;
+		else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 4)
+			flag = 1;
+		else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 4)
+			flag = 1;
+		else if (Ppos.x == 8 && Ppos.y >= 5 && Ppos.y <= 7)
+			flag = 1;
+		else if (Ppos.x == 8 && Ppos.y >= 13 && Ppos.y <= 15)
+			flag = 1;
+		else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 12)
+			flag = 1;
+		else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 12)
+			flag = 1;
+		else if (Ppos.x == 30 && Ppos.y >= 5 && Ppos.y <= 7)
+			flag = 1;
+		else if (Ppos.x == 30 && Ppos.y >= 13 && Ppos.y <= 15)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Ppos.x, Ppos.y);
+	printf("★");
+	Level();
+	Mscore();
+}
+
+void InitPoison3() {
+	srand((unsigned)time(NULL));
+	while (1) {
+		int flag = 0;
+		Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+		Ppos.y = rand() % (Hei - 2) + 1;
+		Psnake q = head;
+		while (q != NULL) {
+			if (Ppos.x == q->x&&Ppos.y == q->y) {
+				flag = 1;
+				break;
+			}
+			q = q->next;
+		}
+		if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+			flag = 1;
+		else if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+			flag = 1;
+		else if (Ppos.x == Px[1] && Ppos.y == Py[1])
+			flag = 1;
+		else if (Ppos.x == Px[2] && Ppos.y == Py[2])
+			flag = 1;
+		else if (Ppos.x == Px[3] && Ppos.y == Py[3])
+			flag = 1;
+		else if (Ppos.x == Px[4] && Ppos.y == Py[4])
+			flag = 1;
+		else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 4)
+			flag = 1;
+		else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 4)
+			flag = 1;
+		else if (Ppos.x == 8 && Ppos.y >= 5 && Ppos.y <= 7)
+			flag = 1;
+		else if (Ppos.x == 8 && Ppos.y >= 12 && Ppos.y <= 15)
+			flag = 1;
+		else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 15)
+			flag = 1;
+		else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 15)
+			flag = 1;
+		else if (Ppos.x == 30 && Ppos.y >= 5 && Ppos.y <= 7)
+			flag = 1;
+		else if (Ppos.x == 30 && Ppos.y >= 12 && Ppos.y <= 15)
+			flag = 1;
+		else if (Ppos.x == 20 && Ppos.y >= 7 && Ppos.y <= 12)
+			flag = 1;
+		else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 10)
+			flag = 1;
+		if (flag == 0)
+			break;
+	}
+	pos(Ppos.x, Ppos.y);
+	printf("★");
+	Level();
+	Mscore();
+}
+
+void PrintPoison1() {               /*界面初始化时初次生成多个毒草*/
+	int i = 1;
+	srand((unsigned)time(NULL));
+	for (; i < 5; i++) {
+		while (1) {
+			int flag = 0;
+			Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+			Ppos.y = rand() % (Hei - 2) + 1;
+			Ppos.x = (Ppos.x) *i / i;       /*打乱随机数避免多个毒草位置重合*/
+			Ppos.y = (Ppos.y) *i / i;
+			Psnake q = head;
+			while (q != NULL) {
+				if (Ppos.x == q->x&&Ppos.y == q->y) {
+					flag = 1;
+					break;
+				}
+				q = q->next;
+			}
+			if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+				flag = 1;
+			if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+				flag = 1;
+			else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 5)
+				flag = 1;
+			else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 15)
+				flag = 1;
+			if (flag == 0)
+				break;
+		}
+		pos(Ppos.x, Ppos.y);
+		printf("★");
+		Px[i] = Ppos.x;
+		Py[i] = Ppos.y;         /*记录每个毒草的位置*/
+	}
+	Level();
+}
+
+void PrintPoison2() {
+	int i = 1;
+	srand((unsigned)time(NULL));
+	for (; i < 5; i++) {
+		while (1) {
+			int flag = 0;
+			Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+			Ppos.y = rand() % (Hei - 2) + 1;
+			Ppos.x = (Ppos.x)*i / i;
+			Ppos.y = (Ppos.y)*i / i;
+			Psnake q = head;
+			while (q != NULL) {
+				if (Ppos.x == q->x&&Ppos.y == q->y) {
+					flag = 1;
+					break;
+				}
+				q = q->next;
+			}
+			if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+				flag = 1;
+			if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+				flag = 1;
+			else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 4)
+				flag = 1;
+			else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 4)
+				flag = 1;
+			else if (Ppos.x == 8 && Ppos.y >= 5 && Ppos.y <= 7)
+				flag = 1;
+			else if (Ppos.x == 8 && Ppos.y >= 13 && Ppos.y <= 15)
+				flag = 1;
+			else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 12)
+				flag = 1;
+			else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 12)
+				flag = 1;
+			else if (Ppos.x == 30 && Ppos.y >= 5 && Ppos.y <= 7)
+				flag = 1;
+			else if (Ppos.x == 30 && Ppos.y >= 13 && Ppos.y <= 15)
+				flag = 1;
+			if (flag == 0)
+				break;
+		}
+		pos(Ppos.x, Ppos.y);
+		printf("★");
+		Px[i] = Ppos.x;
+		Py[i] = Ppos.y;
+	}
+	Level();
+}
+
+void PrintPoison3() {
+	int i = 1;
+	srand((unsigned)time(NULL));
+	for (; i < 5; i++) {
+		while (1) {
+			int flag = 0;
+			Ppos.x = (rand() % (Wid / 2 - 2) + 1) * 2;
+			Ppos.y = rand() % (Hei - 2) + 1;
+			Ppos.x = (Ppos.x)*i / i;
+			Ppos.y = (Ppos.y)*i / i;
+			Psnake q = head;
+			while (q != NULL) {
+				if (Ppos.x == q->x&&Ppos.y == q->y) {
+					flag = 1;
+					break;
+				}
+				q = q->next;
+			}
+			if (Ppos.x == Fpos.x&&Ppos.y&&Fpos.y)
+				flag = 1;
+			if (Ppos.x == Mpos.x&&Ppos.y == Mpos.y)
+				flag = 1;
+			else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 4)
+				flag = 1;
+			else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 4)
+				flag = 1;
+			else if (Ppos.x == 8 && Ppos.y >= 5 && Ppos.y <= 7)
+				flag = 1;
+			else if (Ppos.x == 8 && Ppos.y >= 12 && Ppos.y <= 15)
+				flag = 1;
+			else if (Ppos.x >= 8 && Ppos.x <= 14 && Ppos.y == 15)
+				flag = 1;
+			else if (Ppos.x >= 24 && Ppos.x <= 30 && Ppos.y == 15)
+				flag = 1;
+			else if (Ppos.x == 30 && Ppos.y >= 5 && Ppos.y <= 7)
+				flag = 1;
+			else if (Ppos.x == 30 && Ppos.y >= 12 && Ppos.y <= 15)
+				flag = 1;
+			else if (Ppos.x == 20 && Ppos.y >= 7 && Ppos.y <= 12)
+				flag = 1;
+			else if (Ppos.x >= 14 && Ppos.x <= 24 && Ppos.y == 10)
+				flag = 1;
+			if (flag == 0)
+				break;
+		}
+		pos(Ppos.x, Ppos.y);
+		printf("★");
+		Px[i] = Ppos.x;
+		Py[i] = Ppos.y;
+	}
+	Level();
+}
+
+void Destory() {                  /*游戏结束后释放内存*/
+	while (head != tail) {
+		tail = tail->prev;
+		free(tail->next);
+	}
+	free(tail);
+}
+
+void Init1() {                   /*界面初始化*/
+	system("color 0");
+	Border1();
+	HeadPos.x = Wid / 2;
+	HeadPos.y = Hei / 2;
+	HeadPos.dir = 0;
+	head = NULL;
+	tail = NULL;
+	AddHead(HeadPos.x, HeadPos.y);
+	score = 0;
+	Initfood1();
+	PrintPoison1();
+	Initmine1();
+}
+
+void Init2() {
+	system("color 0");
+	Border2();
+	HeadPos.x = Wid / 2;
+	HeadPos.y = Hei / 2;
+	HeadPos.dir = 0;
+	head = NULL;
+	tail = NULL;
+	AddHead(HeadPos.x, HeadPos.y);
+	score = 0;
+	Initfood2();
+	PrintPoison2();
+	Initmine2();
+}
+
+void Init3() {
+	system("color 0");
+	Border3();
+	HeadPos.x = 6;
+	HeadPos.y = 3;
+	HeadPos.dir = 3;
+	head = NULL;
+	tail = NULL;
+	AddHead(HeadPos.x, HeadPos.y);
+	score = 0;
+	Initfood3();
+	PrintPoison3();
+	Initmine3();
+}
+
+void Disappear() {                   /*控制毒草间隔相同时间内出现和消失*/
+	int i;
+	for (i = 1; i < 5; i++) {
+		pos(Px[i], Py[i]);
+		printf(" ");
+		Px[i] = 0;
+		Py[i] = 0;
+	}
+	pos(Ppos.x, Ppos.y);
+	printf(" ");
+	Ppos.x = 0;
+	Ppos.y = 0;
+}
+
+void Run() {
+	int re = 0;
+	int t = 0;
+	while (1) {
+		Sleep(speed);
+		Changed();
+		dis++;
+		switch (map) {                 /*判断游戏状态是否结束*/
+		case 1:if (Over1())
+			O = 1;
+			break;
+		case 2:if (Over2())
+			O = 1;
+			break;
+		case 3:if (Over3())
+			O = 1;
+			break;
+		}
+		if (O == 1)
+			break;
+		else if (HeadPos.x == Fpos.x&&HeadPos.y == Fpos.y) {          /*判断是否吃到食物并更新*/
+			AddHead(HeadPos.x, HeadPos.y);
+			switch (map) {
+			case 1:InitFood1(); break;
+			case 2:InitFood2(); break;
+			case 3:InitFood3(); break;
+			}
+		}
+		else if (HeadPos.x == Ppos.x&&HeadPos.y == Ppos.y) {         /*判断是否吃到毒草并更新*/
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				MinusSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:InitPoison1(); break;
+				case 2:InitPoison2(); break;
+				case 3:InitPoison3(); break;
+				}
+			}
+		}
+		else if (HeadPos.x == Px[1] && HeadPos.y == Py[1]) {
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				MinusSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:InitPoison1(); break;
+				case 2:InitPoison2(); break;
+				case 3:InitPoison3(); break;
+				}
+			}
+		}
+		else if (HeadPos.x == Px[2] && HeadPos.y == Py[2]) {
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				MinusSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:InitPoison1(); break;
+				case 2:InitPoison2(); break;
+				case 3:InitPoison3(); break;
+				}
+			}
+		}
+		else if (HeadPos.x == Px[3] && HeadPos.y == Py[3]) {
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				MinusSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:InitPoison1(); break;
+				case 2:InitPoison2(); break;
+				case 3:InitPoison3(); break;
+				}
+			}
+		}
+		else if (HeadPos.x == Px[4] && HeadPos.y == Py[4]) {
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				MinusSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:InitPoison1(); break;
+				case 2:InitPoison2(); break;
+				case 3:InitPoison3(); break;
+				}
+			}
+		}
+		else if (HeadPos.x == Mpos.x&&HeadPos.y == Mpos.y) {           /*判断是否吃到地雷并更新*/
+			if (len == 1) {
+				quit = 1;
+			}
+			else {
+				HalfSnake(HeadPos.x, HeadPos.y);
+				switch (map) {
+				case 1:Initmine1(); break;
+				case 2:Initmine2(); break;
+				case 3:Initmine3(); break;
+				}
+			}
+		}
+		else
+			MoveSnake(HeadPos.x, HeadPos.y);          /*正常移动*/
+		if (dis >= 20 && re == 0) {           /*控制毒草消失的时间间隔*/
+			Disappear();
+			dis = 0;
+			re = 1;
+		}
+		if (dis >= 20 && re == 1) {
+			switch (map) {
+			case 1:PrintPoison1(); break;
+			case 2:PrintPoison2(); break;
+			case 3:PrintPoison3(); break;
+			}
+			re = 0;
+			dis = 0;
+		}
+	}
+	saveList();
+	pos(0, Hei);
+	printf("蛇死亡游戏结束");
+}
+
+void Forth() {
+	system("cls");               /*游戏结束界面*/
+	pos(40, 10);
+	printf("游戏结束 你的等级为");
+	switch (speed) {
+	case 50:
+		printf("：5级巨佬");
+		break;
+	case 100:
+		printf("：4级大佬");
+		break;
+	case 150:
+		printf("：3级地球人");
+		break;
+	case 200:
+		printf("：2级菜鸡");
+		break;
+	case 250:
+		printf("：1级蜗牛");
+		break;
+	}
+	pos(40, 12);
+	printf("你的分数为：%d\n", ++score);
+	system("pause");
+}
+
+void First() {             /*欢迎界面*/
+	pos(40, 10);
+	printf("欢迎来到贪吃蛇⊙ω⊙\n");
+	system("pause");
+	system("cls");
+}
+
+int Second() {                /*选择关卡界面并记录所选地图*/
+	pos(30, 10);
+	printf("请选择关卡：按键1~3分别对应难度递增的地图");
+	pos(30, 12);
+	printf("按9退出游戏");
+	switch (getch()) {
+	case '3':
+		map = 3;
+		speed = 250;
+		break;
+	case '2':
+		map = 2;
+		speed = 250;
+		break;
+	case '1':
+		map = 1;
+		speed = 250;
+		break;
+	case '9':
+		exit(0);
+		break;
+	default:
+		pos(30, 14);
+		printf("输入错误请重新输入！");
+	}
+	system("cls");
+	pos(Wid, 4);
+	printf("等级提示：蜗牛、菜鸡、地球人、大佬、巨佬");
+	pos(Wid, 8);
+	printf("空格键暂停游戏 按键9退出游戏");
+	pos(Wid, 10);
+	printf("食物：●     毒草：★     地雷：△");
+	pos(Wid, 14);
+	printf("方向控制：↑↓←→\n");
+	system("pause");
+	system("cls");
+	switch (map) {
+	case 1:Init1();
+		break;
+	case 2:Init2();
+		break;
+	case 3:Init3();
+		break;
+	}
+}
+
+void Third() {               /*选择操作界面*/
+	int option = 1;
+	int key1, key2;
+	pos(25, 7);
+	printf("-> 新游戏");
+	pos(25, 10);
+	printf("   继续游戏");
+	pos(25, 13);
+	printf("   查看排行榜");
+
+	while ((key1 = getch()) != ENTER) {
+		key2 = getch();
+		if (key2 == 72 && option > 1) {
+			option--;
+		}
+		if (key2 == 80 && option < 3) {
+			option++;
+		}
+		if (option == 1) {
+			pos(25, 7);
+			printf("->");
+			pos(25, 10);
+			printf("  ");
+			pos(25, 13);
+			printf("  ");
+		}
+		else if (option == 2) {
+			pos(25, 7);
+			printf("  ");
+			pos(25, 10);
+			printf("->");
+			pos(25, 13);
+			printf("  ");
+		}
+		else {
+			pos(25, 7);
+			printf("  ");
+			pos(25, 10);
+			printf("  ");
+			pos(25, 13);
+			printf("->");
+		}
+	}
+	system("cls");
+	if (option == 1) {
+		_getch();
+		Second();
+	}
+
+	else if (option == 2) {
+		_getch();
+		load();
+	}
+	else {
+		_getch();
+		showList();
+		_getch();
+		system("cls");
+		Second();
+	}
+}
+
+FILE *mem;
+FILE *list;
+void save() {             /*人为退出游戏的游戏存档*/
+	Psnake p;
+	if ((mem = fopen("memory.txt", "w+")) == NULL) {
+		fprintf(stderr, "Can't open!\n");
+		exit(1);
+	}
+	fwrite(&len, sizeof(len), 1, mem);
+	fwrite(&HeadPos.dir, sizeof(HeadPos.dir), 1, mem);
+	fwrite(&Fpos, sizeof(Fpos), 1, mem);
+	fwrite(&Mpos, sizeof(Mpos), 1, mem);
+	fwrite(&score, sizeof(score), 1, mem);
+	fwrite(&speed, sizeof(speed), 1, mem);
+	fwrite(&map, sizeof(map), 1, mem);
+	fclose(mem);
+}
+
+void load() {           /*继续游戏后读取存档游戏*/
+	int i;
+	head = NULL;
+	tail = NULL;
+	if ((mem = fopen("memory.txt", "r")) == NULL) {
+		fprintf(stderr, "No Game Cache!\n");
+		exit(2);
+	}
+
+	fread(&len, sizeof(len), 1, mem);
+	fread(&HeadPos.dir, sizeof(HeadPos.dir), 1, mem);
+	fread(&Fpos, sizeof(Fpos), 1, mem);
+	fread(&Mpos, sizeof(Mpos), 1, mem);
+	fread(&score, sizeof(score), 1, mem);
+	fread(&speed, sizeof(speed), 1, mem);
+	fread(&map, sizeof(map), 1, mem);
+
+	switch (map) {
+	case 1:
+		Update();
+		Border1();
+		PrintPoison1();
+		HeadPos.x = Wid / 2;
+		HeadPos.y = Hei / 2;
+		break;
+	case 2:
+		Update();
+		Border2();
+		PrintPoison2();
+		HeadPos.x = Wid / 2;
+		HeadPos.y = Hei / 2;
+		break;
+	case 3:
+		Update();
+		Border3();
+		HeadPos.dir = 3;
+		PrintPoison3();
+		HeadPos.x = 6;
+		HeadPos.y = 3;
+		break;
+	}
+	for (i = 0; i < len; i++)
+		AddHead(HeadPos.x, HeadPos.y);
+	pos(Fpos.x, Fpos.y);
+	printf("●");
+	pos(Mpos.x, Mpos.y);
+	printf("△");
+	fclose(mem);
+}
+
+void saveList() {               /*保存成绩排行榜*/
+
+	int scorec = score--;
+	if ((list = fopen("list.txt", "a+")) == NULL) {
+		fprintf(stderr, "Can't open!\n");
+		exit(1);
+	}
+	fwrite(&scorec, sizeof(scorec), 1, list);
+	fclose(list);
+}
+
+void showList() {              /*按顺序列出排行榜*/
+	int i = 0;
+	int j, k, t;
+
+	if ((list = fopen("list.txt", "a+")) == NULL) {
+		fprintf(stderr, "Can't open!\n");
+		exit(2);
+	}
+	for (; i < 100; i++) {
+		fread(&scorea[i], sizeof(scorea[i]), 1, list);
+	}
+	for (i = 1; i < 100; i++) {        /*插入排序*/
+		j = 0;
+		while (j < i&&scorea[j] > scorea[i])
+			j++;
+		if (i != j)
+			for (k = i; k > j; k--)
+			{
+				t = scorea[k];
+				scorea[k] = scorea[k - 1];
+				scorea[k - 1] = t;
+			}
+	}
+	system("cls");
+	printf("\n");
+	for (i = 1; i <= 5; i++) {
+		printf("        第%d名:%d 分\n\n", i, scorea[i - 1]);
+	}
+
+	printf("        按任意键进入游戏\n");
+	_getch();
+	fclose(list);
+}
+
+void main() {
+	First();
+	while (1) {
+		Third();
+		Run();
+		break;
+	}
+	Forth();
+}
